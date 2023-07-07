@@ -1,7 +1,10 @@
+import 'package:expense_tracker/models/expense.dart';
 import 'package:flutter/material.dart';
 
 class NewExpense extends StatefulWidget {
-  const NewExpense({super.key});
+  const NewExpense({super.key, required this.onAddExpense});
+
+  final void Function(Expense expense) onAddExpense;
 
   @override
   State<NewExpense> createState() {
@@ -12,16 +15,55 @@ class NewExpense extends StatefulWidget {
 class _NewExpenseState extends State<NewExpense> {
   final _theInputController = TextEditingController();
   final _amountController = TextEditingController();
+  DateTime? _selectedDate;
+  Category _selectedCategory = Category.leisure;
 
-  void _presentDatePicker() {
+  void _presentDatePicker() async {
     final now = DateTime.now();
     final firstDate = DateTime(now.year - 1, now.month, now.day);
 
-    showDatePicker(
+    final pickedDate = await showDatePicker(
         context: context,
         initialDate: now,
         firstDate: firstDate,
         lastDate: now);
+
+    setState(() {
+      _selectedDate = pickedDate;
+    });
+  }
+
+  void _submitExpense() {
+    final enteredAmount = double.tryParse(_amountController.text);
+    final isInvalidAmount = enteredAmount == null || enteredAmount <= 0;
+
+    if (_theInputController.text.trim().isEmpty ||
+        isInvalidAmount ||
+        _selectedDate == null) {
+      showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+                title: const Text('Invalid Input'),
+                content: const Text(
+                    'Please make sure you entered the title, amount and date and category'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('Ok'),
+                  ),
+                ],
+              ));
+      return;
+    }
+    widget.onAddExpense(Expense(
+        title: _theInputController.text,
+        amount: enteredAmount,
+        date: _selectedDate!,
+        category: _selectedCategory));
+
+    Navigator.pop(context);
   }
 
   @override
@@ -49,8 +91,7 @@ class _NewExpenseState extends State<NewExpense> {
               Expanded(
                 child: TextField(
                   controller: _amountController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
                     label: Text('Enter Amount'),
                   ),
@@ -61,7 +102,11 @@ class _NewExpenseState extends State<NewExpense> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    const Text('Pick a Date'),
+                    Text(
+                      _selectedDate == null
+                          ? 'No date selected'
+                          : formatter.format(_selectedDate!),
+                    ),
                     IconButton(
                       onPressed: _presentDatePicker,
                       icon: const Icon(Icons.access_alarm),
@@ -82,8 +127,7 @@ class _NewExpenseState extends State<NewExpense> {
               const SizedBox(width: 3),
               ElevatedButton(
                 onPressed: () {
-                  print(_theInputController.text);
-                  print(_amountController.text);
+                  _submitExpense();
                 },
                 child: const Text('Submit Expense'),
               ),
